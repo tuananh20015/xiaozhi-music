@@ -17,7 +17,21 @@ app = FastAPI(
     version="2.2.0"
 )
 
-# Cấu hình yt-dlp cho YouTube: Không ép format cố định ở cấp options để tránh DownloadError
+# Ho tro YouTube Cookies tu Environment Variable hoac file cookies.txt
+COOKIES_FILE = None
+if os.environ.get("YOUTUBE_COOKIES"):
+    COOKIES_FILE = "/tmp/youtube_cookies.txt"
+    try:
+        with open(COOKIES_FILE, "w", encoding="utf-8") as f:
+            f.write(os.environ["YOUTUBE_COOKIES"])
+        logger.info("Loaded YouTube cookies from YOUTUBE_COOKIES env var")
+    except Exception as e:
+        logger.warning(f"Error writing cookies file: {e}")
+elif os.path.exists("cookies.txt"):
+    COOKIES_FILE = "cookies.txt"
+    logger.info("Loaded YouTube cookies from cookies.txt")
+
+# Cau hinh yt-dlp cho YouTube
 YDL_OPTS_YT = {
     "noplaylist": True,
     "quiet": True,
@@ -25,10 +39,12 @@ YDL_OPTS_YT = {
     "skip_download": True,
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "ios", "tv_embedded", "mweb"]
+            "player_client": ["tv", "ios", "web"]
         }
     }
 }
+if COOKIES_FILE:
+    YDL_OPTS_YT["cookiefile"] = COOKIES_FILE
 
 # Cấu hình yt-dlp cho SoundCloud: Lấy toàn bộ formats để phân tích và lọc bằng code
 YDL_OPTS_SC = {
@@ -267,6 +283,7 @@ def extract_music(query: str, request: Request = None):
                         "bitrate": 128,
                         "protocol": "https_continuous_chunked",
                         "stream_type": "server_progressive_stream",
+                        "raw_stream_url": hls_url,
                         "url": proxy_stream_url
                     }
     except Exception as e:
@@ -362,7 +379,7 @@ def stream_audio_to_ogg_opus(query: str):
         logger.error(f"Khong tim thay audio stream cho: {query}")
         return
 
-    source_url = result["url"]
+    source_url = result.get("raw_stream_url") or result["url"]
     ffmpeg_bin = get_ffmpeg_exe()
     logger.info(f"Transcoding to Ogg Opus mono 16kHz for query: {query} from {result.get('source')}")
 
