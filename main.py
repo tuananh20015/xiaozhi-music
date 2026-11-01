@@ -352,13 +352,16 @@ def stream_audio(m3u8: str = Query(..., description="URL nguồn HLS")):
 
 
 def get_ffmpeg_exe() -> str:
-    """Lay duong dan ffmpeg thuc thi (uu tien imageio-ffmpeg neu co, sau do la he thong)"""
+    """Lay duong dan ffmpeg thuc thi (uu tien he thong goc vi on dinh, sau do moi den imageio-ffmpeg)"""
+    import shutil
+    sys_ff = shutil.which("ffmpeg")
+    if sys_ff:
+        return sys_ff
     try:
         import imageio_ffmpeg
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception:
-        import shutil
-        return shutil.which("ffmpeg") or "ffmpeg"
+        return "ffmpeg"
 
 def stream_audio_to_ogg_opus(query: str):
     """
