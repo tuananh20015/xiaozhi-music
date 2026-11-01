@@ -31,17 +31,12 @@ elif os.path.exists("cookies.txt"):
     COOKIES_FILE = "cookies.txt"
     logger.info("Loaded YouTube cookies from cookies.txt")
 
-# Cau hinh yt-dlp cho YouTube
+# Cau hinh yt-dlp cho YouTube: Su dung mac dinh thong minh cua yt-dlp
 YDL_OPTS_YT = {
     "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
-    "skip_download": True,
-    "extractor_args": {
-        "youtube": {
-            "player_client": ["tv", "ios", "web"]
-        }
-    }
+    "skip_download": True
 }
 if COOKIES_FILE:
     YDL_OPTS_YT["cookiefile"] = COOKIES_FILE
@@ -326,17 +321,14 @@ def play_json(request: Request, q: str = Query(..., description="Tên bài hát 
 @app.get("/redirect")
 def play_redirect(request: Request, q: str = Query(..., description="Tên bài hát cần tìm")):
     """
-    Redirect 302 trực tiếp sang luồng âm thanh liên tục (MP3/AAC).
-    ESP32 chỉ cần gọi connecttohost() vào link này là phát mượt mà từ đầu đến cuối.
+    Redirect 302 trực tiếp sang luồng âm thanh OGG Opus.
+    Tối ưu cho cả trình duyệt Chrome lẫn ESP32 phát mượt mà từ đầu đến cuối.
     """
     if not q.strip():
         raise HTTPException(status_code=400, detail="Vui lòng nhập tên bài hát")
-    
-    result = extract_music(q, request)
-    if not result or not result.get("url"):
-        raise HTTPException(status_code=404, detail="Không tìm thấy bài hát có luồng âm thanh liên tục phù hợp")
-    
-    return RedirectResponse(url=result["url"], status_code=302)
+
+    encoded_q = urllib.parse.quote(q)
+    return RedirectResponse(url=f"/stream_ogg?q={encoded_q}", status_code=302)
 
 @app.get("/stream")
 def stream_audio(m3u8: str = Query(..., description="URL nguồn HLS")):
@@ -386,9 +378,6 @@ def stream_audio_to_ogg_opus(query: str):
     cmd = [
         ffmpeg_bin,
         "-loglevel", "error",
-        "-reconnect", "1",
-        "-reconnect_streamed", "1",
-        "-reconnect_delay_max", "5",
         "-i", source_url,
         "-vn",
         "-c:a", "libopus",
