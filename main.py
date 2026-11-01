@@ -434,6 +434,52 @@ def play_stream_ogg(q: str = Query(..., description="Ten bai hat can tim")):
         }
     )
 
+
+@app.get("/debug")
+def debug(q: str = Query("999 doa hong", description="Tên bài hát")):
+    import shutil, subprocess
+    ffmpeg_sys = shutil.which("ffmpeg")
+    img_ff = None
+    try:
+        import imageio_ffmpeg
+        img_ff = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as e:
+        img_ff = str(e)
+
+    result = extract_music(q)
+    source_url = result.get("raw_stream_url") or result.get("url") if result else None
+
+    ffmpeg_bin = get_ffmpeg_exe()
+    cmd = [
+        ffmpeg_bin,
+        "-i", source_url or "",
+        "-vn", "-c:a", "libopus", "-b:a", "48k", "-ar", "16000", "-ac", "1",
+        "-t", "2",
+        "-f", "ogg", "pipe:1"
+    ]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate(timeout=15)
+        rc = proc.returncode
+        stderr_msg = stderr.decode("utf-8", errors="ignore")[-800:]
+        out_len = len(stdout)
+    except Exception as e:
+        rc = -1
+        stderr_msg = str(e)
+        out_len = 0
+
+    return {
+        "ffmpeg_sys": ffmpeg_sys,
+        "imageio_ffmpeg": img_ff,
+        "ffmpeg_bin_used": ffmpeg_bin,
+        "extract_source": result.get("source") if result else None,
+        "extract_title": result.get("title") if result else None,
+        "source_url_prefix": source_url[:80] if source_url else None,
+        "ffmpeg_returncode": rc,
+        "stdout_bytes": out_len,
+        "stderr": stderr_msg
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
