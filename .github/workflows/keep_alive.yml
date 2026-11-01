@@ -1,0 +1,20 @@
+name: Keep Alive Render Music API
+
+on:
+  schedule:
+    # Ping cứ mỗi 10 phút một lần để chống Render Free ngủ đông
+    - cron: '*/10 * * * *'
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API Server
+        run: |
+          echo "Sending ping to https://xiaozhi-music-api.onrender.com/ ..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://xiaozhi-music-api.onrender.com/")
+          echo "Ping response HTTP status: $STATUS"
